@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redirecting...</title>
+
+  <!-- 默认先给一个语言，避免闪烁；JS 会立刻覆盖 -->
+  <html lang="zh-CN">
+
+  <style>
+    :root { --mdui-color-primary: 33 150 243; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: rgb(var(--mdui-color-surface, 250 250 250));
+      color: rgb(var(--mdui-color-on-surface, 32 33 36));
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.4rem;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    /* ===== 横跳加载条（检测/跳转时显示） ===== */
+    #bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      z-index: 10000;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    #bar .indicator {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 40%;
+      background: rgb(var(--mdui-color-primary));
+      animation: barBounce 1.1s cubic-bezier(.4,0,.2,1) infinite;
+    }
+    @keyframes barBounce {
+      0%   { left: -40%; }
+      50%  { left: 60%;  }
+      100% { left: 110%; }
+    }
+
+    .spinner {
+      width: 46px; height: 46px;
+      border: 4px solid rgba(0,0,0,.12);
+      border-top-color: rgb(var(--mdui-color-primary));
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    h1 { font-size: 1.2rem; font-weight: 600; }
+    p  { font-size: .92rem; opacity: .75; }
+
+    .lang {
+      display: inline-flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: .4rem;
+    }
+    .lang a {
+      text-decoration: none;
+      padding: .55rem 1.2rem;
+      border-radius: 99px;
+      font-size: .9rem;
+      font-weight: 500;
+      background: rgb(var(--mdui-color-primary));
+      color: #fff;
+      transition: opacity .2s;
+    }
+    .lang a:hover { opacity: .85; }
+    .lang a.secondary {
+      background: transparent;
+      color: rgb(var(--mdui-color-primary));
+      box-shadow: inset 0 0 0 1.5px rgb(var(--mdui-color-primary));
+    }
+
+    .detected {
+      font-size: .8rem;
+      opacity: .6;
+      margin-top: -.4rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="bar"><div class="indicator"></div></div>
+
+  <div class="spinner"></div>
+  <h1 id="title">正在检测语言...</h1>
+  <p id="desc">Detecting your language...</p>
+  <p class="detected" id="detected"></p>
+
+  <div class="lang">
+    <a href="/?lang=zh-CN">简体中文</a>
+    <a class="secondary" href="/?lang=en-US">English</a>
+  </div>
+
+  <script>
+    // ===== 语言 -> 跳转地址映射（按需修改） =====
+    const MAP = {
+      'zh-CN': '/index.html',   // 中文页（你主页的实际路径）
+      'en-US': '/en.html',      // 英文页
+    };
+
+    const DEFAULT_LANG = 'en-US'; // 不支持时的默认语言
+
+    // 多语言 UI 文案
+    const UI = {
+      'zh-CN': { title: '正在跳转...', desc: '已为您匹配简体中文页面' },
+      'en-US': { title: 'Redirecting...', desc: 'Matched English page for you' },
+    };
+
+    function detectLanguage() {
+      // 1. URL 参数优先级最高（手动选择 / 记忆）
+      const params = new URLSearchParams(location.search);
+      const fromUrl = params.get('lang');
+      if (fromUrl && MAP[fromUrl]) return fromUrl;
+
+      // 2. localStorage 记忆
+      const saved = localStorage.getItem('lang');
+      if (saved && MAP[saved]) return saved;
+
+      // 3. 浏览器语言检测（取主标签，如 zh-CN、en-US、en、zh）
+      const navLangs = navigator.languages || [navigator.language || navigator.userLanguage];
+      for (const l of navLangs) {
+        const key = l.toLowerCase();
+        // 精确匹配
+        if (MAP[key]) return key;
+        // 前缀匹配：zh-* -> zh-CN，en-* -> en-US
+        if (key.startsWith('zh') && MAP['zh-CN']) return 'zh-CN';
+        if (key.startsWith('en') && MAP['en-US']) return 'en-US';
+      }
+
+      // 4. 兜底默认
+      return DEFAULT_LANG;
+    }
+
+    function applyUI(lang) {
+      const ui = UI[lang] || UI[DEFAULT_LANG];
+      document.documentElement.lang = lang;
+      document.title = ui.title;
+      document.getElementById('title').textContent = ui.title;
+      document.getElementById('desc').textContent = ui.desc;
+      document.getElementById('detected').textContent =
+        'detected: ' + (navigator.language || '—');
+    }
+
+    function redirect() {
+      const lang = detectLanguage();
+      const target = MAP[lang] || MAP[DEFAULT_LANG];
+
+      applyUI(lang);
+      localStorage.setItem('lang', lang);
+
+      // 横跳条 + 短暂停留后跳转，体验更好
+      setTimeout(() => { window.location.href = target; }, 900);
+    }
+
+    redirect();
+  </script>
+</body>
+</html>
