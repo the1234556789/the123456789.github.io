@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>the1234556789</title>
+  <link rel="stylesheet" href="https://unpkg.com/mdui@2/mdui.css" />
+  <script src="https://unpkg.com/mdui@2/mdui.global.js"></script>
+  <style>
+    :root {
+      --mdui-color-primary: 33 150 243;
+    }
+
+    /* ===== 首屏环形加载层 ===== */
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgb(var(--mdui-color-surface));
+      z-index: 9999;
+      transition: opacity .6s ease, visibility .6s ease;
+    }
+    #loadingOverlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* ===== 跳转横跳加载条 ===== */
+    #pageTransitionBar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      z-index: 10000;
+      overflow: hidden;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .3s ease;
+    }
+    #pageTransitionBar.active { opacity: 1; }
+    #pageTransitionBar .indicator {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 40%;
+      background: rgb(var(--mdui-color-primary));
+      animation: barBounce 1.1s cubic-bezier(.4,0,.2,1) infinite;
+    }
+    @keyframes barBounce {
+      0%   { left: -40%; }
+      50%  { left: 60%;  }
+      100% { left: 110%; }
+    }
+
+    /* ===== 跳转遮罩 + 转圈 ===== */
+    #transitionOverlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.35);
+      z-index: 9998;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity .3s ease, visibility .3s ease;
+    }
+    #transitionOverlay.active { opacity: 1; visibility: visible; }
+
+    /* ===== 页面内容过渡 ===== */
+    #main {
+      opacity: 0;
+      transition: opacity .5s ease;
+    }
+    #main.loaded { opacity: 1; }
+    #main.leaving { opacity: 0; }
+
+    /* ===== 布局 ===== */
+    .top-app-bar { position: sticky; top: 0; z-index: 100; }
+    .hero {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 4rem 1rem 2rem;
+      text-align: center;
+    }
+    .hero .avatar {
+      width: 96px; height: 96px;
+      border-radius: 50%;
+      background: rgb(var(--mdui-color-primary-container));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.4rem;
+      margin: 0 auto 1rem;
+      color: rgb(var(--mdui-color-on-primary-container));
+    }
+    .hero h1 { margin: 0 0 .4rem; font-size: 2rem; }
+    .subtitle {
+      color: rgb(var(--mdui-color-on-surface-variant));
+      margin: 0 0 1.4rem;
+    }
+
+    /* ===== 项目卡片 ===== */
+    .projects-section { padding: 2rem 1rem; max-width: 960px; margin: 0 auto; }
+    .section-title {
+      font-size: 1.6rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      color: rgb(var(--mdui-color-on-surface));
+    }
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1.2rem;
+    }
+    .project-card {
+      padding: 1.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .project-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    }
+    .project-icon { font-size: 2.2rem; margin-bottom: .3rem; }
+    .project-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: rgb(var(--mdui-color-on-surface));
+      margin: 0;
+    }
+    .project-desc {
+      font-size: .88rem;
+      color: rgb(var(--mdui-color-on-surface-variant));
+      line-height: 1.5;
+      margin: 0;
+      flex: 1;
+    }
+    .project-card mdui-button { align-self: flex-start; margin-top: .4rem; }
+
+    .project-status {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      font-size: .8rem;
+      padding: .2rem .6rem;
+      border-radius: 99px;
+      width: fit-content;
+    }
+    .project-status.discontinued {
+      background: rgba(var(--mdui-color-error), .12);
+      color: rgb(var(--mdui-color-error));
+    }
+    .project-card mdui-button[disabled] {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: rgb(var(--mdui-color-on-surface-variant));
+      font-size: .85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ① 首屏环形加载层 -->
+  <div id="loadingOverlay">
+    <mdui-circular-progress></mdui-circular-progress>
+  </div>
+
+  <!-- ② 跳转横跳加载条 -->
+  <div id="pageTransitionBar"><div class="indicator"></div></div>
+
+  <!-- ② 跳转遮罩 + 转圈 -->
+  <div id="transitionOverlay">
+    <mdui-circular-progress></mdui-circular-progress>
+  </div>
+
+  <mdui-layout>
+    <mdui-top-app-bar class="top-app-bar" variant="center-aligned">
+      <mdui-top-app-bar-title>the1234556789</mdui-top-app-bar-title>
+      <div style="margin-left:auto; padding-right:12px;">
+        <mdui-button-icon id="themeToggle" icon="brightness_6--outlined"></mdui-button-icon>
+      </div>
+    </mdui-top-app-bar>
+
+    <div id="main">
+      <!-- 个人简介 -->
+      <section class="hero">
+        <div class="avatar">T</div>
+        <h1>the1234556789</h1>
+        <p class="subtitle">the1234556789</p>
+      </section>
+
+      <!-- 项目展示 -->
+      <section class="projects-section">
+        <h2 class="section-title">我的项目</h2>
+        <div class="projects-grid">
+
+          <!-- 项目 1：我的世界启动器（已停更） -->
+          <mdui-card class="project-card" variant="filled">
+            <div class="project-icon">⛏️</div>
+            <h3 class="project-name">我的世界启动器</h3>
+            <p class="project-desc">轻量级 Minecraft 网页启动器，快速进入游戏世界。</p>
+            <div class="project-status discontinued">
+              <mdui-icon name="block--outlined" style="font-size:1rem;"></mdui-icon>
+              <span>已停止更新</span>
+            </div>
+            <mdui-button data-transition data-href="https://the1234556789.github.io/mc/" disabled>
+              已被拒绝连接
+            </mdui-button>
+          </mdui-card>
+
+          <!-- 项目 2：Project Pioneer -->
+          <mdui-card class="project-card" variant="filled">
+            <div class="project-icon">📺</div>
+            <h3 class="project-name">Project Pioneer</h3>
+            <p class="project-desc">在线视频观看软件，支持上传、搜索、分类浏览。</p>
+            <mdui-button data-transition data-href="https://the1234556789.github.io/project-pioneer/">
+              访问项目
+            </mdui-button>
+          </mdui-card>
+
+          <!-- 项目 3：Windows 10 模拟器 -->
+          <mdui-card class="project-card" variant="filled">
+            <div class="project-icon">🪟</div>
+            <h3 class="project-name">Windows 10 模拟器</h3>
+            <p class="project-desc">在浏览器中体验 Windows 10 操作系统的经典界面。</p>
+            <mdui-button data-transition data-href="https://the1234556789.github.io/Windows10-/windows/">
+              访问项目
+            </mdui-button>
+          </mdui-card>
+
+        </div>
+      </section>
+
+      <footer>© 2024-2026 huize</footer>
+    </div>
+  </mdui-layout>
+
+  <script>
+    // ===== 首屏加载 =====
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const main = document.getElementById('main');
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        loadingOverlay.classList.add('hidden');
+        main.classList.add('loaded');
+      }, 400);
+    });
+
+    // ===== 主题切换（亮 / 暗 / 跟随系统） =====
+    const themeToggle = document.getElementById('themeToggle');
+    const modes = ['auto', 'light', 'dark'];
+    let modeIdx = 0;
+    themeToggle.addEventListener('click', () => {
+      modeIdx = (modeIdx + 1) % modes.length;
+      document.documentElement.setAttribute('mdui-theme-mode', modes[modeIdx]);
+    });
+
+    // ===== 跳转横跳加载 =====
+    const bar = document.getElementById('pageTransitionBar');
+    const overlay = document.getElementById('transitionOverlay');
+
+    function startTransition(href) {
+      bar.classList.add('active');
+      overlay.classList.add('active');
+      main.classList.add('leaving');
+      setTimeout(() => {
+        endTransition();
+        if (href) window.location.href = href;
+      }, 1200);
+    }
+    function endTransition() {
+      bar.classList.remove('active');
+      overlay.classList.remove('active');
+    }
+
+    document.querySelectorAll('[data-transition]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        const href = el.getAttribute('data-href');
+        if (!href) return;
+        e.preventDefault();
+        startTransition(href);
+      });
+    });
+  </script>
+</body>
+</html>
